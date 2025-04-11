@@ -1,64 +1,73 @@
+#include "gesture-project-arduino.h"
 #include <SoftwareSerial.h>
 #include <DFRobotDFPlayerMini.h>
-#include <SD.h>
+// #include <SD.h>
 
 SoftwareSerial mySerial(10, 11); // RX, TX for DFPlayer Mini
 DFRobotDFPlayerMini myDFPlayer;
 
-File rhythmFile;
+// File rhythmFile;
 unsigned long startTime;
+unsigned long nextNoteTime = 0;
+bool playing = false;
+int i = 0;
+int rhythmFileLength = 375;
+
+const int ledPin = 13;
 
 void setup() {
-    Serial.begin(9600);
-    mySerial.begin(9600);
+  pinMode(ledPin, OUTPUT);
+  digitalWrite(ledPin, LOW);
 
-    if (!myDFPlayer.begin(mySerial)) {
-        Serial.println("DFPlayer Mini initialization failed!");
-        while (true);
-    }
-    myDFPlayer.volume(20);
+  Serial.begin(115200);
+  mySerial.begin(9600);
 
-    if (!SD.begin(4)) {
-        Serial.println("SD card initialization failed!");
-        while (true);
-    }
+  if (!myDFPlayer.begin(mySerial)) {
+      Serial.println("DFPlayer Mini initialization failed!");
+      while (true);
+  }
+  myDFPlayer.volume(30);
+  Serial.println("DFPlayer initialized");
 
-    rhythmFile = SD.open("../output/rhythm.txt");
-    if (!rhythmFile) {
-        Serial.println("Failed to open rhythm.txt");
-        while (true);
-    }
+  myDFPlayer.play(1); // Play the first MP3 file on the SD card
+  // delay(200);
+  startTime = millis(); // Record the start time
+  playing = true;
 
-    myDFPlayer.play(1); // Play the first MP3 file on the SD card
-    startTime = millis(); // Record the start time
+  loadNextNote();
 }
 
 void loop() {
-    static unsigned long nextEventTime = 0;
-    static int velocity = 0;
+  // if (!playing) return;
 
-    // Check if we need to load the next rhythm event
-    if (nextEventTime == 0 && rhythmFile.available()) {
-        String line = rhythmFile.readStringUntil('\n');
-        int commaIndex = line.indexOf(',');
-        nextEventTime = line.substring(0, commaIndex).toInt();
-        velocity = 31;
-    }
+  unsigned long currentTime = millis() - startTime;
 
-    // Check if it's time to trigger the next event
-    unsigned long currentTime = millis() - startTime;
-    if (currentTime >= nextEventTime && nextEventTime > 0) {
-        Serial.print("Trigger event at: ");
-        Serial.print(currentTime);
-        Serial.print(" ms, Velocity: ");
-        Serial.println(velocity);
+  // Check if it's time to light up the LED for the next note
+  if (currentTime >= nextNoteTime && nextNoteTime > 0) {
+    Serial.print(currentTime);
+    Serial.print(" : ");
+    Serial.println(nextNoteTime);
+    lightUpLED();
+    loadNextNote(); // Load the next note timing
+  }
+}
 
-        // Trigger your event here (e.g., flash LED, vibrate motor)
-        digitalWrite(LED_BUILTIN, HIGH);
-        delay(50);
-        digitalWrite(LED_BUILTIN, LOW);
+void lightUpLED() {
+  digitalWrite(ledPin, HIGH);
+  delay(100);
+  digitalWrite(ledPin, LOW);
+}
 
-        // Reset for the next event
-        nextEventTime = 0;
-    }
+void loadNextNote() {
+  
+  if (i != rhythmFileLength) {
+    nextNoteTime = (long) (rhythmFile[i] * 1000);
+    Serial.print(rhythmFile[i] * 1000);
+    Serial.print(" : Next note at: ");
+    Serial.println(nextNoteTime);
+    i++;
+  } else {
+    nextNoteTime = 0;
+  }
+  
 }
