@@ -1,4 +1,5 @@
 import pretty_midi
+import random
 
 def __main__():
     midi_data = pretty_midi.PrettyMIDI('midi/riptide.mid')
@@ -11,25 +12,28 @@ def __main__():
                 notes.add(note.start)
 
     notes = sorted(list(notes), key=lambda x: x)
-    # deleteOverlap(notes)
 
-    with open('output/rhythm_data.txt', 'w') as output_file:
-        for start in notes:
-            output_file.write(f"{start:.3f},\n")
+    note_data = [(note, True, random.randint(0, 3)) for note in notes]
+
+    for note in note_data:
+        if note[1]:
+            note_data.append((note[0] + 2, False, -1))
+
+    note_data = sorted(note_data, key=lambda x: x[0])
+
+    with open('output/rhythm_data_new.txt', 'w') as output_file:
+        output_file.write("struct rhythm_data {\n");
+        output_file.write("    double note_start;\n");
+        output_file.write("    bool is_note;\n");
+        output_file.write("    int led_channel;\n");
+        output_file.write("};\n\n");
+        output_file.write("struct rhythm_data rhythm_data[] = {\n");
+        for note in note_data:
+            output_file.write(f"    {{ {note[0]:.3f}, {str(note[1]).lower()}, {note[2]} }},\n")
+        output_file.write("};\n")
 
     print("Rhythm data has been saved to 'output/rhythm_data.txt'.")
 
-def deleteOverlap(notes):
-    # notes = sorted(notes, key=lambda x: x[0])
-    non_overlapping_notes = []
-    for note in notes:
-        if not non_overlapping_notes or note[0] >= non_overlapping_notes[-1][1]:
-            non_overlapping_notes.append(note)
-
-    with open('output/overlap_debug.txt', 'w') as debug_file:
-        for note in non_overlapping_notes:
-            debug_file.write(f"{note}\n")
-    return non_overlapping_notes
 
 if __name__ == "__main__":
     __main__()
